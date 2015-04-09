@@ -163,6 +163,10 @@ int main(int argc, char* argv[])
                         
                         last = ed;
                     }
+                    while (last < origin.size()) {
+                        answer += origin[last];
+                        ++ last;
+                    }
                 }
                 if (index < betweens.size()) {
                     answer += betweens[index];

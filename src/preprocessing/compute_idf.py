@@ -2,8 +2,6 @@ import sys
 from math import *
 
 def main(argv):
-    ENDINGS = ".!?,;:\"[]"
-
     rawTextInput = 'rawText.txt'
     stopwordsOutput = 'stopwordsFromText.txt'
     argc = len(argv)
@@ -29,11 +27,10 @@ def main(argv):
             elif ch == ')':
                 inside -= 1
             elif inside == 0:
-                if ch != ' ' and ch not in ENDINGS:
-                    if ch.isalpha():
-                        chars.append(ch.lower())
-                    else:
-                        chars.append(ch)
+                if ch.isalpha():
+                    chars.append(ch.lower())
+                elif ch == '\'':
+                    chars.append(ch)
                 else:
                     if len(chars) > 0:
                         token = ''.join(chars)

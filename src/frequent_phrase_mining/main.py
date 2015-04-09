@@ -1,4 +1,5 @@
 from frequent_pattern_mining import *
+import re
 import sys
 
 def main(argv):
@@ -27,14 +28,13 @@ def main(argv):
             elif ch == ')':
                 inside -= 1
             elif inside == 0:
-                if ch != ' ' and ch not in ENDINGS:
-                    if ch.isalpha():
-                        chars.append(ch.lower())
-                    else:
-                        chars.append(ch)
+                if ch.isalpha():
+                    chars.append(ch.lower())
+                elif ch == '\'':
+                    chars.append(ch)
                 else:
                     if len(chars) > 0:
-                        tokens.append(''.join(chars).strip())
+                        tokens.append(''.join(chars))
                     chars = []
             if ch in ENDINGS:
                 tokens.append('$')
