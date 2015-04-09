@@ -31,39 +31,39 @@ mkdir -p results
 Green='\033[0;32m'
 NC='\033[0m'
 
-# # preprocessing
-# echo -e "${Green}Translating traditional Chinese to simplified using OpenCC${NC}" 
-# opencc -i ${RAW_TEXT} -o tmp/pre_raw.txt -c tw2s.json
+# preprocessing
+echo -e "${Green}Translating traditional Chinese to simplified using OpenCC${NC}" 
+opencc -i ${RAW_TEXT} -o tmp/pre_raw.txt -c tw2s.json
 
-# echo -e "${Green}Transforming punctuations${NC}"
-# ${PYPY} ./src/preprocessing/punctuation.py -i tmp/pre_raw.txt -o tmp/raw.txt
+echo -e "${Green}Transforming punctuations${NC}"
+${PYPY} ./src/preprocessing/punctuation.py -i tmp/pre_raw.txt -o tmp/raw.txt
 
-# echo -e "${Green}Doing Chinese word segmentation and tokenization${NC}"
-# ${PYPY} ./src/preprocessing/tokenization.py -i tmp/raw.txt -o tmp/raw.txt.token -map results/mapping.txt
+echo -e "${Green}Doing Chinese word segmentation and tokenization${NC}"
+${PYPY} ./src/preprocessing/tokenization.py -i tmp/raw.txt -o tmp/raw.txt.token -map results/mapping.txt
 
-# echo -e "${Green}Transforming to binary format${NC}"
-# ./bin/from_raw_to_binary_text tmp/raw.txt.token tmp/sentencesWithPunc.buf
+echo -e "${Green}Transforming to binary format${NC}"
+./bin/from_raw_to_binary_text tmp/raw.txt.token tmp/sentencesWithPunc.buf
 
-# #frequent phrase mining for phrase candidates
-# echo -e "${Green}Mining frequent phrases as candidates${NC}"
-# ${PYTHON} ./src/frequent_phrase_mining/main.py -thres ${SUPPORT_THRESHOLD} -o ./results/patterns.csv -raw tmp/raw.txt.token
-# ${PYTHON} ./src/preprocessing/compute_idf.py -raw tmp/raw.txt.token -o results/wordIDF.txt
+#frequent phrase mining for phrase candidates
+echo -e "${Green}Mining frequent phrases as candidates${NC}"
+${PYTHON} ./src/frequent_phrase_mining/main.py -thres ${SUPPORT_THRESHOLD} -o ./results/patterns.csv -raw tmp/raw.txt.token
+${PYTHON} ./src/preprocessing/compute_idf.py -raw tmp/raw.txt.token -o results/wordIDF.txt
 
-# #feature extraction
-# echo -e "${Green}Extracting features${NC}"
-# ${PYPY} ./src/utils/encoding.py results/mapping.txt ${STOPWORD_LIST}
-# ./bin/feature_extraction tmp/sentencesWithPunc.buf results/patterns.csv ${STOPWORD_LIST}.token results/wordIDF.txt results/feature_table_0.csv
+#feature extraction
+echo -e "${Green}Extracting features${NC}"
+${PYPY} ./src/utils/encoding.py results/mapping.txt ${STOPWORD_LIST}
+./bin/feature_extraction tmp/sentencesWithPunc.buf results/patterns.csv ${STOPWORD_LIST}.token results/wordIDF.txt results/feature_table_0.csv
 
-# if [ ${AUTO_LABEL} -eq 1 ];
-# then
-# 	echo -e "${Green}Auto labeling${NC}"
-# 	${PYPY} ./src/utils/encoding.py results/mapping.txt ${KNOWLEDGE_BASE} ${KNOWLEDGE_BASE_LARGE}
-#     ${PYTHON} src/classification/auto_label_generation.py ${KNOWLEDGE_BASE}.token ${KNOWLEDGE_BASE_LARGE}.token results/feature_table_0.csv results/patterns.csv ${DATA_LABEL}
-# fi
+if [ ${AUTO_LABEL} -eq 1 ];
+then
+	echo -e "${Green}Auto labeling${NC}"
+	${PYPY} ./src/utils/encoding.py results/mapping.txt ${KNOWLEDGE_BASE} ${KNOWLEDGE_BASE_LARGE}
+    ${PYTHON} src/classification/auto_label_generation.py ${KNOWLEDGE_BASE}.token ${KNOWLEDGE_BASE_LARGE}.token results/feature_table_0.csv results/patterns.csv ${DATA_LABEL}
+fi
 
-# # classifier training
-# echo -e "${Green}Classifying using random forests${NC}"
-# ./bin/predict_quality results/feature_table_0.csv ${DATA_LABEL} results/ranking.csv outsideSentence,log_occur_feature,constant,frequency 0 TRAIN results/random_forest_0.model
+# classifier training
+echo -e "${Green}Classifying using random forests${NC}"
+./bin/predict_quality results/feature_table_0.csv ${DATA_LABEL} results/ranking.csv outsideSentence,log_occur_feature,constant,frequency 0 TRAIN results/random_forest_0.model
 
 MAX_ITERATION_1=$(expr $MAX_ITERATION + 1)
 
