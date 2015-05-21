@@ -3,7 +3,7 @@
 export PYTHON=python
 export PYPY=pypy
 
-RAW_TEXT=data/wiki.cleaned.txt
+RAW_TEXT=data/wiki.ar.txt
 AUTO_LABEL=1
 DATA_LABEL=data/wiki.label.auto
 KNOWLEDGE_BASE=data/wiki_labels_quality.txt
