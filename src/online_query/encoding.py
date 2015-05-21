@@ -4,7 +4,7 @@ import codecs
 import jieba
 import sys
 
-punctuations = u'()[]{}<>%+-:.,;!|"\''
+punctuations = u'=^&#\\_*?/()[]{}<>%+-:.,;!|"\''
 
 mapping = dict()
 
