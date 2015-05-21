@@ -31,14 +31,17 @@ mkdir -p results
 Green='\033[0;32m'
 NC='\033[0m'
 
-# preprocessing
-echo -e "${Green}Translating traditional Chinese to simplified using OpenCC${NC}" 
-opencc -i ${RAW_TEXT} -o tmp/pre_raw.txt -c tw2s.json
+#preprocessing
+echo -e "${Green}Doing Arabic segmentation${NC}"
+cd stanford-segmenter
+java -mx1g -classpath stanford-segmenter-3.5.2.jar \
+     edu.stanford.nlp.international.arabic.process.ArabicSegmenter \
+     -loadClassifier data/arabic-segmenter-atb+bn+arztrain.ser.gz \
+     -orthoOptions normArDigits,normArPunc  \
+     -textFile ../$RAW_TEXT > ../tmp/raw.txt
+cd ..
 
-echo -e "${Green}Transforming punctuations${NC}"
-${PYPY} ./src/preprocessing/punctuation.py -i tmp/pre_raw.txt -o tmp/raw.txt
-
-echo -e "${Green}Doing Chinese word segmentation and tokenization${NC}"
+echo -e "${Green}Doing tokenization${NC}"
 ${PYPY} ./src/preprocessing/tokenization.py -i tmp/raw.txt -o tmp/raw.txt.token -map results/mapping.txt
 
 echo -e "${Green}Transforming to binary format${NC}"

@@ -1,0 +1,17 @@
+# -*- coding: utf-8 -*-
+
+import codecs
+
+stopwords = set()
+with codecs.open('stopwords.txt', encoding='utf-8', mode='r') as input:
+	for line in input:
+		line = line.strip()
+		elements = line.split(' ')
+		for element in elements:
+			stopwords.add(element.encode('utf8'))
+with codecs.open('stopwords.txt_', encoding='utf-8', mode='w') as output:
+	stopwords_ = sorted(list(stopwords))
+	for i in stopwords_:
+		print i
+		output.write(i.decode('utf8'))
+		output.write('\n')

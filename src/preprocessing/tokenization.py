@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
+from nltk.tokenize import WordPunctTokenizer
 import codecs
-import jieba
 import sys
 
-punctuations = u'()[]{}<>%+-:.,;!|"\''
+punctuations = u'=^&#\\_*?/()[]{}<>%+-:.,;!|"\''
 
 mapping = dict()
 index = 'abcdefghijklmnopqrstuvwxyz'
@@ -30,17 +30,17 @@ def main(argv):
     with codecs.open(tokenizedFile, encoding='utf-8', mode='w') as output:
         id = 0
         for line in codecs.open(rawTextInput, encoding='utf-8', mode='r'):
-            result = jieba.tokenize(line.strip())
+            result = WordPunctTokenizer().tokenize(line.strip())
             newline = []
             for tk in result:
-                tk = tk[0]
                 if tk == ' ':
                     newline.append(' ')
                     continue
                 if tk in punctuations:
                     newline.append(tk)
+                    newline.append(' ')
                     continue
-                tk = ''.join([i for i in tk if not i.isdigit()]).lower()
+                tk = ''.join([i for i in tk if not i.isdigit() and i not in punctuations]).lower()
                 if len(tk) == 0:
                     newline.append(' ')
                     continue

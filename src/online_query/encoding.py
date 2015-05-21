@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
+from nltk.tokenize import WordPunctTokenizer
 import codecs
-import jieba
 import sys
 
-punctuations = u'()[]{}<>%+-:.,;!|"\''
+punctuations = u'=^&#\\_*?/()[]{}<>%+-:.,;!|"\''
 
 mapping = dict()
 
@@ -29,19 +29,22 @@ def main(argv):
     outputB = codecs.open(offsetFile, encoding='utf-8', mode='w')
     for line in codecs.open(rawTextInput, encoding='utf-8', mode='r'):
         offsets = []
-        result = jieba.tokenize(line.strip())
+        line = line.strip()
+        spans = list(WordPunctTokenizer().span_tokenize(line))
+        # result = WordPunctTokenizer().tokenize(line)
         newline = []
-        for tk in result:
-            begin = tk[1]
-            end = tk[2]
-            tk = tk[0]
+        for tk in spans:
+            begin = tk[0]
+            end = tk[1]
+            tk = line[begin:end]
             if tk == ' ':
                 newline.append(' ')
                 continue
             if tk in punctuations:
                 newline.append(tk)
+                newline.append(' ')
                 continue
-            tk = ''.join([i for i in tk if not i.isdigit()]).lower()
+            tk = ''.join([i for i in tk if not i.isdigit() and i not in punctuations]).lower()
             if len(tk) == 0:
                 newline.append(' ')
                 continue
