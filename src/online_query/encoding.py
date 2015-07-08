@@ -22,14 +22,14 @@ def main(argv):
           offsetFile = argv[i + 1]
     with codecs.open(mappingFile, encoding='utf-8', mode='r') as input:
         for line in input:
-            elements = line.strip().split(',')
+            elements = line.rstrip().split(',')
             mapping[elements[1]] = elements[0]
 
     outputA = codecs.open(tokenizedFile, encoding='utf-8', mode='w')
     outputB = codecs.open(offsetFile, encoding='utf-8', mode='w')
     for line in codecs.open(rawTextInput, encoding='utf-8', mode='r'):
         offsets = []
-        line = line.strip()
+        line = line.rstrip()
         spans = list(WordPunctTokenizer().span_tokenize(line))
         # result = WordPunctTokenizer().tokenize(line)
         newline = []
