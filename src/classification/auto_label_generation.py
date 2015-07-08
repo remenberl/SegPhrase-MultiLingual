@@ -91,7 +91,7 @@ matrixWiki = normalizeMatrix(matrixWiki)
 matrixOther = normalizeMatrix(matrixOther)
 
 # k-means
-kmeans = cluster.MiniBatchKMeans(n_clusters = min(200, len(matrixWiki)), max_iter = 300, batch_size = 5000)
+kmeans = cluster.MiniBatchKMeans(n_clusters = min(100, len(matrixWiki)), max_iter = 300, batch_size = 5000)
 kmeans.fit(matrixWiki)
 labelsWiki = kmeans.labels_
 bins = []

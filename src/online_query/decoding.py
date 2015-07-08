@@ -4,6 +4,8 @@ from itertools import izip
 import codecs
 import sys
 
+punctuations = u'=^&#\\_*?/()[]{}<>%+-:.,;!|"\''
+
 mapping = dict()
 
 def main(argv):
@@ -56,7 +58,8 @@ def main(argv):
                         index += num_mapped_units
                         unit = []
                     if is_salient:
-                        unit.append(ch)
+                        if ch not in punctuations:
+                            unit.append(ch)
                     elif len(unit) > 0:
                         unit = []
                         index += 1
