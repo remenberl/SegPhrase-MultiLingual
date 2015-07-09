@@ -15,7 +15,9 @@ During the training phase, we create a dictionary between Chinese word segments 
 ## Build
 
 SegPhrase can be easily built by Makefile in the terminal.
+```
 $ make
+```
 
 ## Default Run
 ```
