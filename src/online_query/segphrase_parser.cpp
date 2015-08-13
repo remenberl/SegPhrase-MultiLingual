@@ -1,5 +1,6 @@
 #include "segphrase_parser.h"
 
+bool OFFSET = false;
 int TOP_K = 0;
 
 const string ENDINGS = ".!?,;:[]";
@@ -56,6 +57,23 @@ void loadRankList(string filename, int topN)
     FOR (pair, order) {
         dict.insert(pair->second);
     }
+}
+
+string translate_offset(const string &line, int &base, int &bias)
+{
+    ostringstream sout;
+    int left = 0, right = 0;
+    for (int i = 0; i < line.size(); ++ i) {
+        if (line[i] == '[') {
+            left = base + 1;
+        } else if (line[i] == ']') {
+            right = base;
+            bias += 1;
+            sout << "[" << (left - bias * 2 + 1) << "," << right - bias * 2 + 1 << "]";
+        }
+        base += 1;
+    }
+    return sout.str();
 }
 
 string translate(vector<pair<string, bool>> &segments, bool clean_mode, string &origin, string &text, vector<string> &betweens, int &index)
@@ -134,6 +152,13 @@ int main(int argc, char* argv[])
         cerr << "== Top " << TOP_K << " mode ==" << endl;
     }
 
+    if (argc < 9 || sscanf(argv[8], "%d", &OFFSET) != 1) {
+        OFFSET = false;
+        cerr << "== String mode ==" << endl;
+    } else {
+        cerr << "== Offset mode ==" << endl;
+    }
+
     string model_path = (string)argv[1];
     SegPhraseParser* parser = new SegPhraseParser(model_path, 0);
     cerr << "parser built." << endl;
@@ -145,6 +170,7 @@ int main(int argc, char* argv[])
     FILE* out = tryOpen(argv[5], "w");
 
     bool clean_mode = (strcmp(argv[6], "0") != 0);
+    int base = 0, bias = 0;
     for (;getLine(in);) {
         vector<string> sentences;
         vector<string> betweens;
@@ -187,15 +213,26 @@ int main(int argc, char* argv[])
             if (TOP_K == 0) {
                 vector<pair<string, bool>> segments = parser->segment(text);
                 string answer = translate(segments, clean_mode, origin, text, betweens, index);
+                if (OFFSET) {
+                    answer = translate_offset(answer, base, bias);
+                }
                 corpus += answer;
             } else {
                 vector<vector<pair<string, bool>>> segments = parser->segment(text, TOP_K);
                 ostringstream sout;
                 sout << segments.size() << endl;
                 int backup = index;
+                int backup_base = base;
+                int backup_bias = bias;
                 FOR (seg, segments) {
                     index = backup;
-                    sout << translate(*seg, clean_mode, origin, text, betweens, index) << endl;
+                    base = backup_base;
+                    bias = backup_bias;
+                    string answer = translate(*seg, clean_mode, origin, text, betweens, index);
+                    if (OFFSET) {
+                        answer = translate_offset(answer, base, bias);
+                    }
+                    sout << answer << endl;
                 }
                 corpus += sout.str();
             }
