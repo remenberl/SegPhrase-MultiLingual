@@ -156,6 +156,79 @@ public:
     		return segments;
     	}
     }
+
+    vector<vector<pair<string, bool>>> segment(const string &sentence, int K) {
+        vector<string> tokens = splitBy(sentence, ' ');
+
+    	vector<vector<double>> f(tokens.size() + 1, vector<double>(K, -INF));
+    	vector<vector<pair<int, int>>> pre(tokens.size() + 1, vector<pair<int, int>>(K, make_pair(-1, -1)));
+    	f[0][0] = 0;
+    	pre[0][0] = make_pair(0, 0);
+    	double penaltyForUnrecognizedUnigram = -1e50 / tokens.size();
+    	for (size_t i = 0 ; i < tokens.size(); ++ i) {
+            for (int top_k = 0; top_k < K; ++ top_k) {
+                if (f[i][top_k] < -1e80) {
+                    continue;
+                }
+//cerr << i << " " << top_k << ": " << f[i][top_k] << endl;
+                string token = "";
+                size_t j = i;
+                for (size_t j = i; j <= i + maxLen && j < tokens.size(); ++ j) {
+                    if (j == i) {
+                        token = tokens[i];
+                    } else {
+                        token += " ";
+                        token += tokens[j];
+                    }
+                    if (prob.count(token) && (dict.size() == 0 || dict.count(token)) || i == j) {
+                        double p = penaltyForUnrecognizedUnigram;
+                        if (prob.count(token) && (dict.size() == 0 || dict.count(token))) {
+                            p = prob[token];
+                        }
+                        for (int new_top_k = 0; new_top_k < K; ++ new_top_k) {
+                            if (f[i][top_k] + p > f[j + 1][new_top_k]) {
+                                for (int iter = K - 1; iter > new_top_k; -- iter) {
+                                    f[j + 1][iter] = f[j + 1][iter - 1];
+                                    pre[j + 1][iter] = pre[j + 1][iter - 1];
+                                }
+                                f[j + 1][new_top_k] = f[i][top_k] + p;
+                                pre[j + 1][new_top_k] = make_pair(i, top_k);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+    	}
+    	if (true) {
+            // get the segmentation plan
+            vector<vector<pair<string, bool>>> top_k_segments;
+            for (int top_k = 0; top_k < K; ++ top_k) {
+                int i = (int)tokens.size();
+                if (f[i][top_k] < -1e80) {
+                    continue;
+                }
+                int cur_k = top_k;
+                vector<pair<string,bool>> segments;
+                while (i > 0) {
+                    int j = pre[i][cur_k].first;
+                    cur_k = pre[i][cur_k].second;
+                    string token = "";
+                    for (int k = j; k < i; ++ k) {
+                        if (k > j) {
+                            token += " ";
+                        }
+                        token += tokens[k];
+                    }
+                    i = j;
+                    segments.push_back(make_pair(token, dict.count(token)));
+                }
+                reverse(segments.begin(), segments.end());
+                top_k_segments.push_back(segments);
+            }
+    		return top_k_segments;
+    	}
+    }
 };
 
 const double SegPhraseParser::INF = 1e100;

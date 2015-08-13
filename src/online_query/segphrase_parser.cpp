@@ -1,5 +1,7 @@
 #include "segphrase_parser.h"
 
+int TOP_K = 0;
+
 const string ENDINGS = ".!?,;:[]";
 
 string sep = "[]";
@@ -43,7 +45,7 @@ void loadRankList(string filename, int topN)
         order.push_back(make_pair(score, word));
     }
     sort(order.rbegin(), order.rend());
-    
+
     if (topN < 0) {
         topN = order.size();
     }
@@ -56,25 +58,92 @@ void loadRankList(string filename, int topN)
     }
 }
 
+string translate(vector<pair<string, bool>> &segments, bool clean_mode, string &origin, string &text, vector<string> &betweens, int &index)
+{
+    string answer = "";
+    if (clean_mode) {
+        for (size_t i = 0; i < segments.size(); ++ i) {
+            if (segments[i].second) {
+                answer += "[";
+            }
+            answer += segments[i].first;
+            if (segments[i].second) {
+                answer += "]";
+            }
+            answer += " ";
+        }
+        answer += "$ ";
+    } else {
+        size_t last = 0;
+        if (segments.size() == 0) {
+            answer += origin;
+        } else {
+            for (size_t i = 0; i < segments.size(); ++ i) {
+                size_t st = last;
+                while (text[st] != segments[i].first[0]) {
+                    ++ st;
+                }
+                size_t ed = st;
+                for (size_t j = 0; j < segments[i].first.size(); ++ j) {
+                    while (text[ed] != segments[i].first[j]) {
+                        ++ ed;
+                    }
+                    ++ ed;
+                }
+
+                for (size_t j = last; j < st; ++ j) {
+                    answer += origin[j];
+                }
+                if (segments[i].second) {
+                    answer += "[";
+                }
+                for (size_t j = st; j < ed; ++ j) {
+                    answer += origin[j];
+                }
+                if (segments[i].second) {
+                    answer += "]";
+                }
+
+                last = ed;
+            }
+            while (last < origin.size()) {
+                answer += origin[last];
+                ++ last;
+            }
+        }
+        if (index < betweens.size()) {
+            answer += betweens[index];
+            ++ index;
+        }
+    }
+    return answer;
+}
+
 int main(int argc, char* argv[])
 {
     int topN;
-    if (argc != 7 || sscanf(argv[3], "%d", &topN) != 1) {
-        cerr << "[usage] <model-file> <rank-list> <top-n> <corpus_in> <segmented_out> <clean_mode>" << endl;
+    if (argc < 7 || sscanf(argv[3], "%d", &topN) != 1) {
+        cerr << "[usage] <model-file> <rank-list> <top-n> <corpus_in> <segmented_out> <clean_mode> [optional: top_k]" << endl;
         return -1;
     }
-    
-    
+
+    if (argc == 7 || sscanf(argv[7], "%d", &TOP_K) != 1) {
+        TOP_K = 0;
+        cerr << "== Top 1 mode ==" << endl;
+    } else {
+        cerr << "== Top " << TOP_K << " mode ==" << endl;
+    }
+
     string model_path = (string)argv[1];
     SegPhraseParser* parser = new SegPhraseParser(model_path, 0);
     cerr << "parser built." << endl;
-    
+
     loadRankList(argv[2], topN);
     parser->setDict(dict);
-    
+
     FILE* in = tryOpen(argv[4], "r");
     FILE* out = tryOpen(argv[5], "w");
-    
+
     bool clean_mode = (strcmp(argv[6], "0") != 0);
     for (;getLine(in);) {
         vector<string> sentences;
@@ -115,69 +184,31 @@ int main(int argc, char* argv[])
                     text[i] = ' ';
                 }
             }
-            vector<pair<string, bool>> segments = parser->segment(text);
-            string answer = "";
-            if (clean_mode) {
-                for (size_t i = 0; i < segments.size(); ++ i) {
-                    if (segments[i].second) {
-                        answer += "[";
-                    }
-                    answer += segments[i].first;
-                    if (segments[i].second) {
-                        answer += "]";
-                    }
-                    answer += " ";
-                }
-                answer += "$ ";
+            if (TOP_K == 0) {
+                vector<pair<string, bool>> segments = parser->segment(text);
+                string answer = translate(segments, clean_mode, origin, text, betweens, index);
                 corpus += answer;
             } else {
-                size_t last = 0;
-                if (segments.size() == 0) {
-                    answer += origin;
-                } else {
-                    for (size_t i = 0; i < segments.size(); ++ i) {
-                        size_t st = last;
-                        while (text[st] != segments[i].first[0]) {
-                            ++ st;
-                        }
-                        size_t ed = st;
-                        for (size_t j = 0; j < segments[i].first.size(); ++ j) {
-                            while (text[ed] != segments[i].first[j]) {
-                                ++ ed;
-                            }
-                            ++ ed;
-                        }
-                        
-                        for (size_t j = last; j < st; ++ j) {
-                            answer += origin[j];
-                        }
-                        if (segments[i].second) {
-                            answer += "[";
-                        }
-                        for (size_t j = st; j < ed; ++ j) {
-                            answer += origin[j];
-                        }
-                        if (segments[i].second) {
-                            answer += "]";
-                        }
-                        
-                        last = ed;
-                    }
-                    while (last < origin.size()) {
-                        answer += origin[last];
-                        ++ last;
-                    }
+                vector<vector<pair<string, bool>>> segments = parser->segment(text, TOP_K);
+                ostringstream sout;
+                sout << segments.size() << endl;
+                int backup = index;
+                FOR (seg, segments) {
+                    index = backup;
+                    sout << translate(*seg, clean_mode, origin, text, betweens, index) << endl;
                 }
-                if (index < betweens.size()) {
-                    answer += betweens[index];
-                    ++ index;
-                }
-                corpus += answer;
+                corpus += sout.str();
             }
         }
-        fprintf(out, "%s\n", corpus.c_str());
+
+        if (sentences.size() == 0) {
+            fprintf(out, "1\n");
+            fprintf(out, "%s\n", corpus.c_str());
+        } else {
+            fprintf(out, "%s", corpus.c_str());
+        }
     }
-    
+
     cerr << "[done]" << endl;
     return 0;
 }

@@ -23,7 +23,7 @@ all: ./bin $(BIN)
 ./bin:
 	mkdir bin
 
-export LDFLAGS= -pthread -lm -Wno-unused-result -Wno-sign-compare -Wno-unused-variable -Wno-parentheses
+export LDFLAGS= -pthread -lm -Wno-unused-result -Wno-sign-compare -Wno-unused-variable -Wno-parentheses -Wno-format
 $(BIN) :
 	$(CXX) $(CFLAGS) $(LDFLAGS) -o $@ $(filter %.cpp %.o %.c, $^)
 $(OBJ) :
