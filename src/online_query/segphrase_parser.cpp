@@ -1,5 +1,8 @@
 #include "segphrase_parser.h"
 
+#include <set>
+using std::set;
+
 bool OFFSET = false;
 int TOP_K = 0;
 
@@ -59,17 +62,25 @@ void loadRankList(string filename, int topN)
     }
 }
 
-string translate_offset(const string &line, int &base, int &bias)
+string translate_offset(const string &line, int &base, int &bias, set<pair<int, int>> &distinct_phrases)
 {
     ostringstream sout;
     int left = 0, right = 0;
+    bool hasLeft = false;
     for (int i = 0; i < line.size(); ++ i) {
         if (line[i] == '[') {
             left = base + 1;
-        } else if (line[i] == ']') {
+            hasLeft = true;
+        } else if (line[i] == ']' && hasLeft) {
+            hasLeft = false;
             right = base;
             bias += 1;
-            sout << "[" << (left - bias * 2 + 1) << "," << right - bias * 2 + 1 << "]";
+
+            left -= bias * 2 - 1;
+            right -= bias * 2 - 1;
+
+            distinct_phrases.insert(make_pair(left, right));
+            sout << "[" << left << "," << right << "]";
         }
         base += 1;
     }
@@ -170,6 +181,8 @@ int main(int argc, char* argv[])
     FILE* out = tryOpen(argv[5], "w");
 
     bool clean_mode = (strcmp(argv[6], "0") != 0);
+    set<pair<int, int>> distinct_phrases;
+    string content = "";
     int base = 0, bias = 0;
     for (;getLine(in);) {
         vector<string> sentences;
@@ -196,7 +209,7 @@ int main(int argc, char* argv[])
             sentences.push_back(sentence);
         }
         string corpus = "";
-        if (!clean_mode) {
+        if (!clean_mode && betweens.size() > 0) {
             corpus += betweens[0];
         }
         int index = 1;
@@ -214,7 +227,7 @@ int main(int argc, char* argv[])
                 vector<pair<string, bool>> segments = parser->segment(text);
                 string answer = translate(segments, clean_mode, origin, text, betweens, index);
                 if (OFFSET) {
-                    answer = translate_offset(answer, base, bias);
+                    answer = translate_offset(answer, base, bias, distinct_phrases);
                 }
                 corpus += answer;
             } else {
@@ -229,22 +242,39 @@ int main(int argc, char* argv[])
                     base = backup_base;
                     bias = backup_bias;
                     string answer = translate(*seg, clean_mode, origin, text, betweens, index);
-                    if (OFFSET) {
-                        answer = translate_offset(answer, base, bias);
-                    }
                     sout << answer << endl;
+                    if (OFFSET) {
+                        answer = translate_offset(answer, base, bias, distinct_phrases);
+                    }
                 }
                 corpus += sout.str();
             }
         }
 
-        if (sentences.size() == 0) {
-            fprintf(out, "1\n");
-            fprintf(out, "%s\n", corpus.c_str());
+        if (!OFFSET) {
+            if (sentences.size() == 0) {
+                fprintf(out, "1\n");
+                fprintf(out, "%s\n", corpus.c_str());
+            } else {
+                fprintf(out, "%s", corpus.c_str());
+            }
         } else {
-            fprintf(out, "%s", corpus.c_str());
+            if (sentences.size() == 0) {
+                base += strlen(line);
+            }
+            content += line;
+            fprintf(out, "%s\n", line);
+            //fprintf(out, "[debug]%s\n===\n", corpus.c_str());
         }
     }
+    if (OFFSET) {
+        fprintf(out, "\nOffset:\n");
+        FOR (iter, distinct_phrases) {
+            fprintf(out, "[%d, %d){%s}\n", iter->first, iter->second, content.substr(iter->first, iter->second - iter->first).c_str());
+        }
+    }
+
+    fclose(out);
 
     cerr << "[done]" << endl;
     return 0;
