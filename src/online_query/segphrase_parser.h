@@ -47,7 +47,9 @@ private:
 
         for (size_t iter = 0; iter < size; ++ iter) {
             size_t i = order[iter].second;
-            prob[phrases[i]] = log(probability[i]);
+            if (log(probability[i]) > -INF) {
+                prob[phrases[i]] = log(probability[i]);
+            }
         }
     }
 
@@ -202,6 +204,7 @@ public:
     	}
     	if (true) {
             // get the segmentation plan
+            myAssert(f[tokens.size()][0] >= -1e80, "[ERROR] at least unigram segmentation!");
             vector<vector<pair<string, bool>>> top_k_segments;
             for (int top_k = 0; top_k < K; ++ top_k) {
                 int i = (int)tokens.size();
