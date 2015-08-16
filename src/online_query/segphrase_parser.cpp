@@ -62,7 +62,7 @@ void loadRankList(string filename, int topN)
     }
 }
 
-string translate_offset(const string &line, int &base, int &bias, set<pair<int, int>> &distinct_phrases)
+string translate_offset(const string &line, int &base, int &bias, set<pair<int, int>> &distinct_phrases, int shift)
 {
     ostringstream sout;
     int left = 0, right = 0;
@@ -78,6 +78,9 @@ string translate_offset(const string &line, int &base, int &bias, set<pair<int, 
 
             left -= bias * 2 - 1;
             right -= bias * 2 - 1;
+
+            left += shift;
+            right += shift;
 
             distinct_phrases.insert(make_pair(left, right));
             sout << "[" << left << "," << right << "]";
@@ -184,6 +187,7 @@ int main(int argc, char* argv[])
     set<pair<int, int>> distinct_phrases;
     string content = "";
     int base = 0, bias = 0;
+    int shift = 0;
     for (;getLine(in);) {
         vector<string> sentences;
         vector<string> betweens;
@@ -211,6 +215,7 @@ int main(int argc, char* argv[])
         string corpus = "";
         if (!clean_mode && betweens.size() > 0) {
             corpus += betweens[0];
+            shift += betweens[0].size();
         }
         int index = 1;
         FOR (sentence, sentences) {
@@ -227,7 +232,7 @@ int main(int argc, char* argv[])
                 vector<pair<string, bool>> segments = parser->segment(text);
                 string answer = translate(segments, clean_mode, origin, text, betweens, index);
                 if (OFFSET) {
-                    answer = translate_offset(answer, base, bias, distinct_phrases);
+                    answer = translate_offset(answer, base, bias, distinct_phrases, shift);
                 }
                 corpus += answer;
             } else {
@@ -244,7 +249,7 @@ int main(int argc, char* argv[])
                     string answer = translate(*seg, clean_mode, origin, text, betweens, index);
                     sout << answer << endl;
                     if (OFFSET) {
-                        answer = translate_offset(answer, base, bias, distinct_phrases);
+                        answer = translate_offset(answer, base, bias, distinct_phrases, shift);
                     }
                 }
                 corpus += sout.str();
@@ -259,9 +264,6 @@ int main(int argc, char* argv[])
                 fprintf(out, "%s", corpus.c_str());
             }
         } else {
-            if (sentences.size() == 0) {
-                base += strlen(line);
-            }
             content += line;
             fprintf(out, "%s\n", line);
             //fprintf(out, "[debug]%s\n===\n", corpus.c_str());
