@@ -217,10 +217,10 @@ void DP(int round, double penalty, bool needSegmentResult = false, bool onlyDump
 
     // initialize
     makeLog(prob, allPhrases);
-	vector< vector<int> > occur(nthreads, vector<int>());
+	vector< vector<double> > occur(nthreads, vector<double>());
     #pragma omp parallel for schedule(static)
     for (int i = 0; i < nthreads; ++ i) {
-        occur[i].resize(allPhrases.size(), 0);
+        occur[i].resize(allPhrases.size(), 0.0f);
     }
 
 	vector< string > parsed(sentences.size(), "");
@@ -277,7 +277,7 @@ void DP(int round, double penalty, bool needSegmentResult = false, bool onlyDump
                         token += tokens[k];
                     }
                     assert(phrase2id.count(token));
-                    ++ occur[tid][phrase2id[token]];
+                    occur[tid][phrase2id[token]] += 1.0;
                     i = j;
 
                     if (needSegmentResult) {
@@ -346,6 +346,14 @@ void DP(int round, double penalty, bool needSegmentResult = false, bool onlyDump
                 int tid = omp_get_thread_num();
 
                 vector<string> segments;
+                double sum_prob = 0;
+                for (int top_k = 0; top_k < TOP_K; ++ top_k) {
+                    int i = (int)tokens.size();
+                    if (f[i][top_k] < -1e80) {
+                        continue;
+                    }
+                    sum_prob += exp(f[i][top_k]);
+                }
                 for (int top_k = 0; top_k < TOP_K; ++ top_k) {
                     int i = (int)tokens.size();
                     if (f[i][top_k] < -1e80) {
@@ -353,6 +361,7 @@ void DP(int round, double penalty, bool needSegmentResult = false, bool onlyDump
                     }
                     energy += f[i][top_k];
                     int cur_k = top_k;
+                    double weight = exp(f[i][top_k]) / sum_prob;
                     while (i > 0) {
                         int j = pre[i][cur_k].first;
                         cur_k = pre[i][cur_k].second;
@@ -364,7 +373,7 @@ void DP(int round, double penalty, bool needSegmentResult = false, bool onlyDump
                             token += tokens[k];
                         }
                         assert(phrase2id.count(token));
-                        ++ occur[tid][phrase2id[token]];
+                        occur[tid][phrase2id[token]] += weight;
                         i = j;
 
                         if (needSegmentResult) {
@@ -399,10 +408,10 @@ void DP(int round, double penalty, bool needSegmentResult = false, bool onlyDump
 
 //    cerr << "    energy = " << energy << endl;
 
-    vector<int> sum(allPhrases.size(), 0);
+    vector<double> sum(allPhrases.size(), 0);
     #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < allPhrases.size(); ++ i) {
-        int &value = sum[i];
+        double &value = sum[i];
         for (int tid = 0; tid < nthreads; ++ tid) {
             value += occur[tid][i];
         }
