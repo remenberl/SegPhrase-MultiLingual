@@ -3,7 +3,7 @@
 export PYTHON=python
 export PYPY=pypy
 
-RAW_TEXT=data/wiki.cleaned.txt
+RAW_TEXT=data/data_nobrackets.txt
 AUTO_LABEL=1
 DATA_LABEL=data/wiki.label.auto
 KNOWLEDGE_BASE=data/wiki_labels_quality.txt
@@ -15,7 +15,7 @@ SUPPORT_THRESHOLD=10
 OMP_NUM_THREADS=10
 DISCARD_RATIO=0.05
 MAX_ITERATION=5
-
+TOP_K=5
 ALPHA=0.85
 
 SLIDING_WINDOW=10
@@ -70,7 +70,7 @@ MAX_ITERATION_1=$(expr $MAX_ITERATION + 1)
 # 1-st round
 echo -e "${Green}First round phrasal segmentation${NC}"
 ./bin/from_raw_to_binary tmp/raw.txt.token tmp/sentences.buf
-./bin/adjust_probability tmp/sentences.buf ${OMP_NUM_THREADS} results/ranking.csv results/patterns.csv ${DISCARD_RATIO} ${MAX_ITERATION} ./results/ ${DATA_LABEL} ./results/penalty.1
+./bin/adjust_probability tmp/sentences.buf ${OMP_NUM_THREADS} results/ranking.csv results/patterns.csv ${DISCARD_RATIO} ${MAX_ITERATION} ./results/ ${DATA_LABEL} ./results/penalty.1 ${TOP_K}
 
 # 2-nd round
 echo -e "${Green}Recomputing features${NC}"
@@ -78,7 +78,7 @@ echo -e "${Green}Recomputing features${NC}"
 
 echo -e "${Green}Second round phrasal segmentation${NC}"
 ./bin/predict_quality results/feature_table_1.csv ${DATA_LABEL} results/ranking_1.csv outsideSentence,log_occur_feature,constant,frequency 0 TRAIN results/random_forest_1.model
-./bin/adjust_probability tmp/sentences.buf ${OMP_NUM_THREADS} results/ranking_1.csv results/patterns.csv ${DISCARD_RATIO} ${MAX_ITERATION} ./results/1. ${DATA_LABEL} ./results/penalty.2
+./bin/adjust_probability tmp/sentences.buf ${OMP_NUM_THREADS} results/ranking_1.csv results/patterns.csv ${DISCARD_RATIO} ${MAX_ITERATION} ./results/1. ${DATA_LABEL} ./results/penalty.2 ${TOP_K}
 
 # phrase list & segmentation model
 echo -e "${Green}Preparing phrase lists and segmentation model${NC}"

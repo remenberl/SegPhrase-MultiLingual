@@ -2,6 +2,8 @@
 #include <omp.h>
 #include <cassert>
 
+int TOP_K = 0;
+
 void makeLog(unordered_map<string, double> &prob, const vector<string> &allPhrases)
 {
     #pragma omp parallel for schedule(static)
@@ -215,10 +217,10 @@ void DP(int round, double penalty, bool needSegmentResult = false, bool onlyDump
 
     // initialize
     makeLog(prob, allPhrases);
-	vector< vector<int> > occur(nthreads, vector<int>());
+	vector< vector<double> > occur(nthreads, vector<double>());
     #pragma omp parallel for schedule(static)
     for (int i = 0; i < nthreads; ++ i) {
-        occur[i].resize(allPhrases.size(), 0);
+        occur[i].resize(allPhrases.size(), 0.0f);
     }
 
 	vector< string > parsed(sentences.size(), "");
@@ -227,89 +229,189 @@ void DP(int round, double penalty, bool needSegmentResult = false, bool onlyDump
 	#pragma omp parallel for schedule(dynamic, 1000) reduction(+:energy)
     for (size_t sentenceID = 0; sentenceID < sentences.size(); ++ sentenceID) {
     	vector<string> &tokens = sentencesTokens[sentenceID];
-    	vector<double> f(tokens.size() + 1, -INF);
-    	vector<int> pre(tokens.size() + 1, -1);
-    	f[0] = 0;
-    	pre[0] = 0;
-    	for (size_t i = 0 ; i < tokens.size(); ++ i) {
-    		if (f[i] < -1e80) {
-    			continue;
-    		}
-    		string token = "";
-    		size_t j = i;
-    		while (j < tokens.size()) {
-    			if (j == i) {
-    				token = tokens[i];
-    			} else {
-    				token += " ";
-    				token += tokens[j];
-    			}
-    			if (prob.count(token)) {
-    				double p = prob[token];
-    				if (f[i] + p > f[j + 1]) {
-    					f[j + 1] = f[i] + p;
-    					pre[j + 1] = i;
-    				}
-    			} else {
-    				if (j > maxLen + i) {
-    					break;
-    				}
-    			}
-    			++ j;
-    		}
-    	}
-    	energy += f[tokens.size()];
-    	if (true) {
-    		int tid = omp_get_thread_num();
-    		int i = (int)tokens.size();
-            vector<string> segments;
-    		while (i > 0) {
-    			int j = pre[i];
-    			string token = "";
-    			for (int k = j; k < i; ++ k) {
-    				if (k > j) {
-    					token += " ";
-    				}
-    				token += tokens[k];
-    			}
-                assert(phrase2id.count(token));
-    			++ occur[tid][phrase2id[token]];
-    			i = j;
 
-                if (needSegmentResult) {
-                    for (size_t k = 0; k < token.size(); ++ k) {
-                        if (token[k] == ' ') {
-                            token[k] = '_';
+    	if (TOP_K == 0) {
+            vector<double> f(tokens.size() + 1, -INF);
+            vector<int> pre(tokens.size() + 1, -1);
+            f[0] = 0;
+            pre[0] = 0;
+            for (size_t i = 0 ; i < tokens.size(); ++ i) {
+                if (f[i] < -1e80) {
+                    continue;
+                }
+                string token = "";
+                size_t j = i;
+                while (j < tokens.size()) {
+                    if (j == i) {
+                        token = tokens[i];
+                    } else {
+                        token += " ";
+                        token += tokens[j];
+                    }
+                    if (prob.count(token)) {
+                        double p = prob[token];
+                        if (f[i] + p > f[j + 1]) {
+                            f[j + 1] = f[i] + p;
+                            pre[j + 1] = i;
+                        }
+                    } else {
+                        if (j > maxLen + i) {
+                            break;
                         }
                     }
-                    segments.push_back(token);
-                }
-    		}
-
-            if (needSegmentResult) {
-                string &ret = parsed[sentenceID];
-                for (int _ = (int)segments.size() - 1; _ >= 0; -- _) {
-                    if (segments[_] == "") {
-                        continue;
-                    }
-                    if (ret.size()) {
-                        ret += " ";
-                    }
-                    ret += segments[_];
-                }
-                if (tokens.size() != 0) {
-                    assert(ret != "");
+                    ++ j;
                 }
             }
-    	}
+            energy += f[tokens.size()];
+            if (true) {
+                int tid = omp_get_thread_num();
+                int i = (int)tokens.size();
+                vector<string> segments;
+                while (i > 0) {
+                    int j = pre[i];
+                    string token = "";
+                    for (int k = j; k < i; ++ k) {
+                        if (k > j) {
+                            token += " ";
+                        }
+                        token += tokens[k];
+                    }
+                    assert(phrase2id.count(token));
+                    occur[tid][phrase2id[token]] += 1.0;
+                    i = j;
+
+                    if (needSegmentResult) {
+                        for (size_t k = 0; k < token.size(); ++ k) {
+                            if (token[k] == ' ') {
+                                token[k] = '_';
+                            }
+                        }
+                        segments.push_back(token);
+                    }
+                }
+
+                if (needSegmentResult) {
+                    string &ret = parsed[sentenceID];
+                    for (int _ = (int)segments.size() - 1; _ >= 0; -- _) {
+                        if (segments[_] == "") {
+                            continue;
+                        }
+                        if (ret.size()) {
+                            ret += " ";
+                        }
+                        ret += segments[_];
+                    }
+                    if (tokens.size() != 0) {
+                        assert(ret != "");
+                    }
+                }
+            }
+        } else {
+            vector<vector<double>> f(tokens.size() + 1, vector<double>(TOP_K, -INF));
+            vector<vector<pair<int, int>>> pre(tokens.size() + 1, vector<pair<int, int>>(TOP_K, make_pair(-1, -1)));
+            f[0][0] = 0;
+            pre[0][0] = make_pair(0, 0);
+            for (size_t i = 0 ; i < tokens.size(); ++ i) {
+                for (int top_k = 0; top_k < TOP_K; ++ top_k) {
+                    if (f[i][top_k] < -1e80) {
+                        continue;
+                    }
+                    string token = "";
+                    size_t j = i;
+                    for (size_t j = i; j <= i + maxLen && j < tokens.size(); ++ j) {
+                        if (j == i) {
+                            token = tokens[i];
+                        } else {
+                            token += " ";
+                            token += tokens[j];
+                        }
+                        if (prob.count(token)) {
+                            double p = prob[token];
+                            for (int new_top_k = 0; new_top_k < TOP_K; ++ new_top_k) {
+                                if (f[i][top_k] + p > f[j + 1][new_top_k]) {
+                                    for (int iter = TOP_K - 1; iter > new_top_k; -- iter) {
+                                        f[j + 1][iter] = f[j + 1][iter - 1];
+                                        pre[j + 1][iter] = pre[j + 1][iter - 1];
+                                    }
+                                    f[j + 1][new_top_k] = f[i][top_k] + p;
+                                    pre[j + 1][new_top_k] = make_pair(i, top_k);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (true) {
+                int tid = omp_get_thread_num();
+
+                vector<string> segments;
+                double sum_prob = 0;
+                for (int top_k = 0; top_k < TOP_K; ++ top_k) {
+                    int i = (int)tokens.size();
+                    if (f[i][top_k] < -1e80) {
+                        continue;
+                    }
+                    sum_prob += exp(f[i][top_k]);
+                }
+                for (int top_k = 0; top_k < TOP_K; ++ top_k) {
+                    int i = (int)tokens.size();
+                    if (f[i][top_k] < -1e80) {
+                        continue;
+                    }
+                    energy += f[i][top_k];
+                    int cur_k = top_k;
+                    double weight = exp(f[i][top_k]) / sum_prob;
+                    while (i > 0) {
+                        int j = pre[i][cur_k].first;
+                        cur_k = pre[i][cur_k].second;
+                        string token = "";
+                        for (int k = j; k < i; ++ k) {
+                            if (k > j) {
+                                token += " ";
+                            }
+                            token += tokens[k];
+                        }
+                        assert(phrase2id.count(token));
+                        occur[tid][phrase2id[token]] += weight;
+                        i = j;
+
+                        if (needSegmentResult) {
+                            for (size_t k = 0; k < token.size(); ++ k) {
+                                if (token[k] == ' ') {
+                                    token[k] = '_';
+                                }
+                            }
+                            segments.push_back(token);
+                        }
+                    }
+                }
+
+                if (needSegmentResult) {
+                    string &ret = parsed[sentenceID];
+                    for (int _ = (int)segments.size() - 1; _ >= 0; -- _) {
+                        if (segments[_] == "") {
+                            continue;
+                        }
+                        if (ret.size()) {
+                            ret += " ";
+                        }
+                        ret += segments[_];
+                    }
+                    if (tokens.size() != 0) {
+                        assert(ret != "");
+                    }
+                }
+            }
+        }
     }
 
 //    cerr << "    energy = " << energy << endl;
 
-    vector<int> sum(allPhrases.size(), 0);
+    vector<double> sum(allPhrases.size(), 0);
     #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < allPhrases.size(); ++ i) {
-        int &value = sum[i];
+        double &value = sum[i];
         for (int tid = 0; tid < nthreads; ++ tid) {
             value += occur[tid][i];
         }
@@ -434,11 +536,18 @@ void loadSentences(const string &filename)
 int main(int argc, char* argv[])
 {
 	int maxIter;
-	if (argc != 10 || sscanf(argv[2], "%d", &nthreads) != 1 || sscanf(argv[5], "%lf", &discard) != 1 || sscanf(argv[6], "%d", &maxIter) != 1) {
+	if (argc < 10 || sscanf(argv[2], "%d", &nthreads) != 1 || sscanf(argv[5], "%lf", &discard) != 1 || sscanf(argv[6], "%d", &maxIter) != 1) {
 		cerr << "[Usage] <input-sentence-buffer> <nthreads> <logistic> <pattern> <discard> <maxIter> <outputFile> <labels> <save penalty>" << endl;
 		return -1;
 	}
     outputFile = argv[7];
+
+    if (argc == 10 || sscanf(argv[10], "%d", &TOP_K) != 1) {
+        TOP_K = 0;
+        cerr << "== Top 1 mode ==" << endl;
+    } else {
+        cerr << "== Top " << TOP_K << " mode ==" << endl;
+    }
 
 	omp_set_num_threads(nthreads);
 

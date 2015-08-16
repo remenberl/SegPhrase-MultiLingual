@@ -6,7 +6,7 @@ import sys
 
 punctuations = u'=^&#\\_*?/()[]{}<>%+-:.,;!|"\''
 
-mapping = dict()
+token_index = []
 
 def main(argv):
     argc = len(argv)
@@ -17,62 +17,71 @@ def main(argv):
           decodedFile = argv[i + 1]
         elif argv[i] == "-orig" and i + 1 < argc:
           origFile = argv[i + 1]
-        elif argv[i] == "-map" and i + 1 < argc:
-          mappingFile = argv[i + 1]
         elif argv[i] == "-offset" and i + 1 < argc:
           offsetFile = argv[i + 1]
-
-    with codecs.open(mappingFile, encoding='utf-8', mode='r') as input:
-        for line in input:
-            elements = line.strip().split(',')
-            mapping[elements[0]] = elements[1]
 
     fileA = codecs.open(origFile, encoding='utf-8', mode='r')
     fileB = codecs.open(segmentedFile, encoding='utf-8', mode='r')
     fileC = codecs.open(offsetFile, encoding='utf-8', mode='r')
-    with codecs.open(decodedFile, encoding='utf-8', mode='w') as output:
-        for lineA, lineB, lineC in izip(fileA, fileB, fileC):
-            offset = []
-            elements = lineC.strip().split('\t')
-            for element in elements:
-                offset.append(element.split(','))
-            unit = []
-            is_salient = False
-            index = 0
-            brackets = []
-            for ch in lineB:
-                if ch.isalpha():
-                    unit.append(ch)
+    with open(decodedFile, 'w') as output:
+        with open(origFile, 'r') as input:
+            for line in input:
+                output.write(line)
+        with open(offsetFile, 'r') as input:
+            for line in input:
+                elements = line.split('\t')
+                for element in elements:
+                    element = element.strip()
+                    if element == "":
+                        continue
+                    tokens = element.split(',')
+                    for i in range(1, 5):
+                        tokens[i] = int(tokens[i])
+                    token_index.append(tokens)
+        tokens_begin = 0
+        with open(segmentedFile, 'r') as input:
+            start = False
+            for line in input:
+                if start:
+                    index1 = line.find(',')
+                    begin = int(line[1:index1])
+                    index2 = line.find(')')
+                    end = int(line[index1+1:index2])
+                    content = ""
+                    offset = []
+                    tokens_begin_cp = tokens_begin
+                    while tokens_begin_cp < len(token_index):
+                        if token_index[tokens_begin_cp][1] >= begin and \
+                                token_index[tokens_begin_cp][2] <= end:
+                            content += token_index[tokens_begin_cp][0]
+                            offset.append(token_index[tokens_begin_cp][3])
+                            offset.append(token_index[tokens_begin_cp][4])
+                        if token_index[tokens_begin_cp][2] <= end:
+                            tokens_begin_cp += 1
+                            continue
+                        else:
+                            break
+                    # moves original tokens_begin
+                    while tokens_begin < len(token_index):
+                        if token_index[tokens_begin][1] < begin:
+                            tokens_begin += 1
+                        else:
+                            break
+                    output.write("[")
+                    output.write(str(offset[0]))
+                    output.write(", ")
+                    output.write(str(offset[len(offset)-1]))
+                    output.write("] (")
+                    output.write(content)
+                    output.write(");\n")
+                    continue
+                if line.strip() != "Offset:":
+                    continue
                 else:
-                    if ch == ']':
-                        is_salient = False
-                        phrase = ''.join(unit)
-                        num_mapped_units = 0
-                        for element in phrase.split(' '):
-                            if element.strip() != '':
-                                num_mapped_units += 1
-                        # mapped_units = []
-                        # for element in phrase.split(' '):
-                        #     mapped_units.append(mapping[''.join(element)])
-                        brackets.append((offset[index][1], offset[index + num_mapped_units - 1][2]))
-                        index += num_mapped_units
-                        unit = []
-                    if is_salient:
-                        if ch not in punctuations:
-                            unit.append(ch)
-                    elif len(unit) > 0:
-                        unit = []
-                        index += 1
-                    if ch == '[':
-                        is_salient = True
-            index = 0
-            output_line = ''
-            for bracket in brackets:
-                output_line += lineA[index:int(bracket[0])]
-                output_line += '[' + lineA[int(bracket[0]):int(bracket[1])] + ']'
-                index = int(bracket[1])
-            output_line += lineA[index:]
-            output.write(output_line)
+                    output.write('\n')
+                    output.write(line)
+                    start = True
+
 
 if __name__ == "__main__":
     main(sys.argv[1 : ])

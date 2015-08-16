@@ -27,40 +27,55 @@ def main(argv):
 
     outputA = codecs.open(tokenizedFile, encoding='utf-8', mode='w')
     outputB = codecs.open(offsetFile, encoding='utf-8', mode='w')
+    shift = 0
+    shift_in_orig_file = 0
     for line in codecs.open(rawTextInput, encoding='utf-8', mode='r'):
         offsets = []
         result = jieba.tokenize(line.rstrip())
         newline = []
         for tk in result:
-            begin = tk[1]
-            end = tk[2]
+            begin = tk[1] + shift_in_orig_file
+            end = tk[2] + shift_in_orig_file
             tk = tk[0]
             if tk == ' ':
                 newline.append(' ')
+                shift += 1
                 continue
             if tk in punctuations:
                 newline.append(tk)
+                shift += len(tk)
                 continue
             tk = ''.join([i for i in tk if not i.isdigit()]).lower()
             if len(tk) == 0:
                 newline.append(' ')
+                shift += 1
                 continue
             if tk not in mapping:
+                shift += len('zzzzzzzzzzz')
                 newline.append('zzzzzzzzzzz')
             else:
                 newline.append(mapping[tk])
-                offsets.append((tk, begin, end))
+                # the second and third elements indicate the offset in the encoded text
+                # the fourth and fifth elements indicate the offset in the orignal text
+                offsets.append((tk, shift, shift + len(mapping[tk]), begin, end))
+                shift += len(mapping[tk])
             newline.append(' ')
+            shift += 1
         outputA.write(u''.join(newline).encode('utf8'))
         outputA.write('\n')
-        for (string, begin, end) in offsets:
+        for (string, begin1, end1, begin2, end2) in offsets:
             outputB.write(string)
             outputB.write(',')
-            outputB.write(str(begin))
+            outputB.write(str(begin1))
             outputB.write(',')
-            outputB.write(str(end))
+            outputB.write(str(end1))
+            outputB.write(',')
+            outputB.write(str(begin2))
+            outputB.write(',')
+            outputB.write(str(end2))
             outputB.write('\t')
         outputB.write('\n')
+        shift_in_orig_file += len(line)
 
 if __name__ == "__main__":
     main(sys.argv[1 : ])
