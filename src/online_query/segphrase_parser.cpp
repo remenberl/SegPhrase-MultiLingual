@@ -62,7 +62,7 @@ void loadRankList(string filename, int topN)
     }
 }
 
-string translate_offset(const string &line, int &base, int &bias, set<pair<int, int>> &distinct_phrases, int shift)
+string translate_offset(int top_k, const string &line, int &base, int &bias, map<pair<int, int>, vector<int>> &distinct_phrases, int shift)
 {
     ostringstream sout;
     int left = 0, right = 0;
@@ -82,7 +82,7 @@ string translate_offset(const string &line, int &base, int &bias, set<pair<int, 
             left += shift;
             right += shift;
 
-            distinct_phrases.insert(make_pair(left, right));
+            distinct_phrases[make_pair(left, right)].push_back(top_k);
             sout << "[" << left << "," << right << "]";
         }
         base += 1;
@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
     FILE* out = tryOpen(argv[5], "w");
 
     bool clean_mode = (strcmp(argv[6], "0") != 0);
-    set<pair<int, int>> distinct_phrases;
+    map<pair<int, int>, vector<int>> distinct_phrases;
     string content = "";
     int base = 0, bias = 0;
     int shift = 0;
@@ -232,7 +232,7 @@ int main(int argc, char* argv[])
                 vector<pair<string, bool>> segments = parser->segment(text);
                 string answer = translate(segments, clean_mode, origin, text, betweens, index);
                 if (OFFSET) {
-                    answer = translate_offset(answer, base, bias, distinct_phrases, shift);
+                    answer = translate_offset(1, answer, base, bias, distinct_phrases, shift);
                 }
                 corpus += answer;
             } else {
@@ -242,14 +242,16 @@ int main(int argc, char* argv[])
                 int backup = index;
                 int backup_base = base;
                 int backup_bias = bias;
+                int topk = 0;
                 FOR (seg, segments) {
+                    ++topk;
                     index = backup;
                     base = backup_base;
                     bias = backup_bias;
                     string answer = translate(*seg, clean_mode, origin, text, betweens, index);
                     sout << answer << endl;
                     if (OFFSET) {
-                        answer = translate_offset(answer, base, bias, distinct_phrases, shift);
+                        answer = translate_offset(topk, answer, base, bias, distinct_phrases, shift);
                     }
                 }
                 corpus += sout.str();
@@ -272,7 +274,11 @@ int main(int argc, char* argv[])
     if (OFFSET) {
         fprintf(out, "\nOffset:\n");
         FOR (iter, distinct_phrases) {
-            fprintf(out, "[%d, %d){%s}\n", iter->first, iter->second, content.substr(iter->first, iter->second - iter->first).c_str());
+            fprintf(out, "[%d, %d){%s}\t", iter->first.first, iter->first.second, content.substr(iter->first.first, iter->first.second - iter->first.first).c_str());
+            FOR (topk, iter->second) {
+                fprintf(out, "%d,", *topk);
+            }
+            fprintf(out, "\n");
         }
     }
 

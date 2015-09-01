@@ -398,9 +398,6 @@ void DP(int round, double penalty, bool needSegmentResult = false, bool onlyDump
                         }
                         ret += segments[_];
                     }
-                    if (tokens.size() != 0) {
-                        assert(ret != "");
-                    }
                 }
             }
         }

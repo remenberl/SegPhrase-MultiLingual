@@ -20,9 +20,6 @@ def main(argv):
         elif argv[i] == "-offset" and i + 1 < argc:
           offsetFile = argv[i + 1]
 
-    fileA = codecs.open(origFile, encoding='utf-8', mode='r')
-    fileB = codecs.open(segmentedFile, encoding='utf-8', mode='r')
-    fileC = codecs.open(offsetFile, encoding='utf-8', mode='r')
     with open(decodedFile, 'w') as output:
         with open(origFile, 'r') as input:
             for line in input:
@@ -47,6 +44,7 @@ def main(argv):
                     begin = int(line[1:index1])
                     index2 = line.find(')')
                     end = int(line[index1+1:index2])
+                    topk = line.split('\t')[-1]
                     content = ""
                     offset = []
                     tokens_begin_cp = tokens_begin
@@ -73,7 +71,7 @@ def main(argv):
                     output.write(str(offset[len(offset)-1]))
                     output.write("] (")
                     output.write(content)
-                    output.write(");\n")
+                    output.write(")\t" + topk)
                     continue
                 if line.strip() != "Offset:":
                     continue
