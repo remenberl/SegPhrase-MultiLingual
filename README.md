@@ -32,6 +32,11 @@ RAW_TEXT=data/wiki.cleaned.txt
 RAW_TEXT is the input of SegPhrase, where each line is a single document.
 
 ```
+PHRASE_LIST=results/salient.csv.natural
+```
+PHRASE_LIST contains a list of Chinese phrases ranked by their predicted quality.
+
+```
 AUTO_LABEL=1
 DATA_LABEL=data/wiki.label.auto
 ```

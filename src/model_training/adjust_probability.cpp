@@ -428,7 +428,6 @@ void DP(int round, double penalty, bool needSegmentResult = false, bool onlyDump
         for (size_t i = 0; i < parsed.size(); ++ i) {
             if (parsed[i] == "") {
                 ++ cnt;
-                assert(sentencesTokens[i].size() == 0);
                 continue;
             }
             if (finalSegmentation.size() && finalSegmentation[finalSegmentation.size() - 1] != '\n') {
