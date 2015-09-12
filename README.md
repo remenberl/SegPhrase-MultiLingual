@@ -8,6 +8,7 @@ During the training phase, we create a dictionary between Chinese word segments 
 
 * g++ 4.8
 * python 2.7
+* pypy (used for efficiency consideration, set PYPY=python in *.sh scripts if pypy is not installed)
 * scikit-learn (python package)
 * jieba (python package)
 * opencc 1.0.*
@@ -63,22 +64,22 @@ MAX_ITERATION=5
 This is the number of iterations of Viterbi training.
 
 ```
+TOP_K=5
+```
+Uses top k segmentation solutions for each sentence in Viterbi training.
+
+```
 ALPHA=0.85
 ```
 Alpha is used in the label propagation from phrases to unigrams.
 
 ## Parameters - parse.sh
 ```
-./bin/segphrase_parser results/segmentation.model results/salient.csv 5000 ./data/test.txt ./results/parsed.txt 0
+./bin/segphrase_parser results/segmentation.model results/salient.csv 5000 ./data/test.txt ./results/parsed.txt 0 ${TOP_K} ${OFFSET}
 ```
 The first parameter is the segmentation model, which we saved in training process. The second parameter is the high quality phrases ranking list (together with unigrams). **The third one determines how many top ranked phrases (unigrams) will be considered in this run of segmentation.** This parameter should be dataset and application specific. The later two are the input and the output of corpus. The last one is a debug flag and you can just leave it as 0.
 
 ```
 src/online_query/decoding.py
 ```
-This script decodes the English letters back to Chinese characters. Quality phrases are within brackets.
-
-```
-src/online_query/compute_offset.py
-```
-This script compute phrase offsets in the document.
+This script decodes the English letters back to Chinese characters. Phrase offsets in the document are also recorded.
