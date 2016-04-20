@@ -1,5 +1,5 @@
 # SegPhrase
-This repository entends English SegPhrase to Chinese (both traditional and simplified).
+This repository entends English SegPhrase to Chinese (both traditional and simplified). A more robust multi-lingual segphrase will be released before 2016 summer.
 
 The underlying idea is to reuse the English implementation by adding an encoding/decoding layer in training and parsing process, respectively.
 During the training phase, we create a dictionary between Chinese word segments and English letters, encode the input data to English pseudo words. In the parsing phase, after identifying quality phrases in encoded new documents, we do the decoding to recover the readable Chinese.
